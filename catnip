@@ -1,0 +1,242 @@
+#!/bin/bash
+
+function loadPackage {
+  if [ -d $CATNIP_HOME/$1 ] && [ -f $CATNIP_HOME/$1/package.cat ]; then
+    . $CATNIP_HOME/$1/package.cat
+  else
+    echo "Package not found"
+    exit 1
+  fi
+}
+
+function loadBuildNumber {
+  cd $CATNIP_HOME/$1
+  BUILD_NUMBER=0
+  if [ -f ./latest.build ]; then
+    BUILD_NUMBER=`expr $(cat ./latest.build 2> /dev/null) + 1` 
+  fi
+  echo "$BUILD_NUMBER" > ./latest.build
+  return $BUILD_NUMBER
+}
+
+function archiveArtifacts {
+  cd $CATNIP_HOME/$1
+  if [ -d $CATNIP_HOME/$1/package/artifacts ]; then
+    echo ""
+    echo " --- $1: archiving artifacts --- "
+    cp -R $CATNIP_HOME/$1/package/artifacts/* $CATNIP_HOME/$1/artifacts/$2/
+    rm -rf $CATNIP_HOME/$1/package/artifacts
+  fi
+}
+
+function prepare {
+  [ -z "$PACKAGE_PREPARE" ] && return
+  echo ""
+  echo " --- $1: preparing --- "
+  cd $CATNIP_HOME/$1/package
+  env BUILD_NUMBER=$2 $PACKAGE_PREPARE
+  if [ $? -eq 0 ]; then
+    archiveArtifacts $1 $2
+  else
+    echo "Preparing failed"
+    exit 1
+  fi
+}
+
+function deploy {
+  lockfile -r 0 $CATNIP_HOME/$1/package.lock
+  if [ $? -eq 0 ]; then
+    echo " --- $1: starting deploy --- "
+
+    START_TIME=$(date +%s.%N)
+
+    loadBuildNumber $1
+    BUILD_NUMBER=$?
+    echo "`date`, v$BUILD_NUMBER"
+    mkdir -m 0755 -p $CATNIP_HOME/$1/artifacts/$BUILD_NUMBER
+    sync $1
+    prepare $1 $BUILD_NUMBER
+    stop $1
+    start $1
+
+    END_TIME=$(date +%s.%N)
+    DURATION=$(echo "$END_TIME - $START_TIME" | bc)
+
+    printf "Deploy completed in %.3F seconds\n" $DURATION
+
+    cd $CATNIP_HOME/$1/artifacts
+    ln -sfT ./$BUILD_NUMBER ./latest
+
+    rm -f $CATNIP_HOME/$1/package.lock
+  else
+    echo "Failed to aquire lock!"
+    exit 1
+  fi
+}
+
+function list {
+  cd $CATNIP_HOME
+  NOTFOUND=true
+  echo ""
+  echo "Running packages:"
+  for dir in `find . -type d`
+  do
+    PID=$(cat $dir/package.pid 2> /dev/null)
+    if [ $? -eq 0 ]; then
+      ps -p $PID > /dev/null 2>&1
+      if [ $? -eq 0 ]; then
+        echo "  $(basename $dir)"
+        NOTFOUND=false
+      fi
+    fi
+  done
+  if $NOTFOUND; then
+    echo "  Nothing running"
+  fi
+}
+
+function start {
+  [ -z "$PACKAGE_START" ] && return
+  echo ""
+  echo " --- $1: starting up --- "
+  cd $CATNIP_HOME/$1
+  echo " --- $1: starting up --- `date` --- " >> package.log
+  touch package.pid
+  chown $EXEC_USER package.pid
+  sudo -u $EXEC_USER env CATNIP=true $PACKAGE_ENV nohup $CATNIP_BIN/cn-forever $PACKAGE_START >> package.log 2>&1 &
+  if [ -f package.pid ]; then
+    echo "Started Successfully"
+  else
+    echo "Failed to start process"
+    exit 1
+  fi
+}
+
+function stop {
+  [ -z "$PACKAGE_START" ] && return
+  echo ""
+  echo " --- $1: stopping --- "
+  cd $CATNIP_HOME/$1
+
+  PID=$(cat ./package.pid 2> /dev/null)
+  if [ $? -eq 0 ]; then
+    ps -p $PID > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+      echo " --- $1: stopping --- `date` --- " >> package.log
+      sudo -u $EXEC_USER kill $PID
+      ps -p $PID > /dev/null 2>&1
+      if [ $? -eq 0 ]; then
+        echo "Failed to stop process"
+        exit 1
+      else
+        echo "Stopped $1"
+      fi
+    else
+      echo "Process not running"
+    fi
+  else
+    echo "Process not running"
+  fi
+}
+
+function _syncGit {
+  if [ -d $CATNIP_HOME/$1/package ]; then
+    cd $CATNIP_HOME/$1/package
+    git fetch --all && git reset --hard origin/master
+  else
+    cd $CATNIP_HOME/$1
+    git clone $REPO_ORIGIN ./package
+  fi
+}
+
+function _syncHg {
+  if [ -d $CATNIP_HOME/$1 ]; then
+    cd $CATNIP_HOME/$1/package
+    hg pull $REPO_ORIGIN && hg update --clean
+  else
+    cd $CATNIP_HOME/$1
+    git clone $REPO_ORIGIN ./package
+  fi
+}
+
+function sync {
+  echo ""
+  echo " --- $1: synchronizing --- "
+  if [ -z "$REPO_TYPE" ]; then
+    echo "Missing repository type"
+    exit 1
+  elif [ -z "$REPO_ORIGIN" ]; then
+    echo "Missing repository origin"
+    exit 1
+  fi
+  case $REPO_TYPE in
+    git )
+      _syncGit $1
+      ;;
+    hg )
+      _syncHg $1
+      ;;
+    * )
+      echo "Invalid repository type specified"
+      exit 1
+  esac
+}
+
+function usage {
+  echo ""
+  echo "    usage: catnip [action] PACKAGE"
+  echo ""
+  echo "    actions:"
+  echo "      deploy       synchronize and start/restart PACKAGE"
+  echo "      list         list all running packages"
+  echo "      restart      execute restart for PACKAGE"
+  echo "      start        execute start for PACKAGE"
+  echo "      stop         execute stop for PACKAGE"
+  echo "      sync         execute synchronize for PACKAGE"
+  exit
+}
+
+CATNIP_BIN=/home/xthexder/dev/catnip
+CATNIP_HOME=/var/catnip
+EXEC_USER=xthexder
+BUILD_USER=root
+[ -f /etc/catnip.conf ] && . /etc/catnip.conf
+
+if [ `whoami` != $BUILD_USER ]; then
+  sudo -u $BUILD_USER $0 $@
+  exit
+fi
+
+case $1 in
+  d|deploy )
+    [ -z "$2" ] && usage
+    loadPackage $2
+    deploy $2
+    ;;
+  l|list )
+    list
+    ;;
+  r|restart )
+    [ -z "$2" ] && usage
+    loadPackage $2
+    stop $2
+    start $2
+    ;;
+  start )
+    [ -z "$2" ] && usage
+    loadPackage $2
+    start $2
+    ;;
+  stop )
+    [ -z "$2" ] && usage
+    loadPackage $2
+    stop $2
+    ;;
+  sync )
+    [ -z "$2" ] && usage
+    loadPackage $2
+    sync $2
+    ;;
+  * )
+    usage
+esac
