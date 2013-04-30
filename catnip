@@ -1,5 +1,7 @@
 #!/bin/bash
 
+[ -f /etc/catnip.conf ] && . /etc/catnip.conf
+
 function loadPackage {
   if [ -d $CATNIP_HOME/$1 ] && [ -f $CATNIP_HOME/$1/package.cat ]; then
     . $CATNIP_HOME/$1/package.cat
@@ -24,8 +26,11 @@ function archiveArtifacts {
   if [ -d $CATNIP_HOME/$1/package/artifacts ]; then
     echo ""
     echo " --- $1: archiving artifacts --- "
+    mkdir -m 0755 -p $CATNIP_HOME/$1/artifacts/$BUILD_NUMBER
     cp -R $CATNIP_HOME/$1/package/artifacts/* $CATNIP_HOME/$1/artifacts/$2/
     rm -rf $CATNIP_HOME/$1/package/artifacts
+    cd $CATNIP_HOME/$1/artifacts
+    ln -sfT ./$BUILD_NUMBER ./latest
   fi
 }
 
@@ -53,7 +58,6 @@ function deploy {
     loadBuildNumber $1
     BUILD_NUMBER=$?
     echo "`date`, v$BUILD_NUMBER"
-    mkdir -m 0755 -p $CATNIP_HOME/$1/artifacts/$BUILD_NUMBER
     sync $1
     prepare $1 $BUILD_NUMBER
     stop $1
@@ -63,9 +67,6 @@ function deploy {
     DURATION=$(echo "$END_TIME - $START_TIME" | bc)
 
     printf "Deploy completed in %.3F seconds\n" $DURATION
-
-    cd $CATNIP_HOME/$1/artifacts
-    ln -sfT ./$BUILD_NUMBER ./latest
 
     rm -f $CATNIP_HOME/$1/package.lock
   else
@@ -95,6 +96,12 @@ function list {
   fi
 }
 
+function log {
+  echo ""
+  echo " --- $1: log file --- "
+  cat $CATNIP_HOME/$1/package.log
+}
+
 function start {
   [ -z "$PACKAGE_START" ] && return
   echo ""
@@ -102,9 +109,10 @@ function start {
   cd $CATNIP_HOME/$1
   echo " --- $1: starting up --- `date` --- " >> package.log
   touch package.pid
-  chown $EXEC_USER package.pid
-  sudo -u $EXEC_USER env CATNIP=true $PACKAGE_ENV nohup $CATNIP_BIN/cn-forever $PACKAGE_START >> package.log 2>&1 &
-  if [ -f package.pid ]; then
+  chmod 777 package.pid
+  cd $CATNIP_HOME/$1/package
+  sudo -u $EXEC_USER env CATNIP=true $PACKAGE_ENV nohup $CATNIP_BIN/cn-forever $PACKAGE_START >> $CATNIP_HOME/$1/package.log 2>&1 &
+  if [ -f $CATNIP_HOME/$1/package.pid ]; then
     echo "Started Successfully"
   else
     echo "Failed to start process"
@@ -189,18 +197,13 @@ function usage {
   echo "    actions:"
   echo "      deploy       synchronize and start/restart PACKAGE"
   echo "      list         list all running packages"
+  echo "      log          display the log file for a package"
   echo "      restart      execute restart for PACKAGE"
   echo "      start        execute start for PACKAGE"
   echo "      stop         execute stop for PACKAGE"
   echo "      sync         execute synchronize for PACKAGE"
   exit
 }
-
-CATNIP_BIN=/home/xthexder/dev/catnip
-CATNIP_HOME=/var/catnip
-EXEC_USER=xthexder
-BUILD_USER=root
-[ -f /etc/catnip.conf ] && . /etc/catnip.conf
 
 if [ `whoami` != $BUILD_USER ]; then
   sudo -u $BUILD_USER $0 $@
@@ -213,8 +216,12 @@ case $1 in
     loadPackage $2
     deploy $2
     ;;
-  l|list )
+  list )
     list
+    ;;
+  log )
+    [ -z "$2" ] && usage
+    log $2
     ;;
   r|restart )
     [ -z "$2" ] && usage

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PID=$(cat ./package.pid 2> /dev/null)
+PID=$(cat ../package.pid 2> /dev/null)
 if [ $? -eq 0 ]; then
   ps -p $PID > /dev/null 2>&1
   if [ $? -eq 0 ]; then
@@ -9,7 +9,7 @@ if [ $? -eq 0 ]; then
   fi
 fi
 
-echo $$ > ./package.pid
+echo $$ > ../package.pid
 
 COMMAND=$1
 shift
