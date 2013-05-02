@@ -114,10 +114,18 @@ function start {
   chmod 777 package.pid
   cd $CATNIP_HOME/$1/package
   sudo -u $EXEC_USER env CATNIP=true $PACKAGE_ENV nohup $CATNIP_BIN/cn-forever $PACKAGE_START >> $CATNIP_HOME/$1/package.log 2>&1 &
-  if [ -f $CATNIP_HOME/$1/package.pid ]; then
-    echo "Started Successfully"
+  sleep 1
+  PID=$(cat $CATNIP_HOME/$1/package.pid 2> /dev/null)
+  if [ $? -eq 0 ]; then
+    ps -p $PID > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+      echo "Started Successfully"
+    else
+      echo "Failed to start process (2)"
+      exit 1
+    fi
   else
-    echo "Failed to start process"
+    echo "Failed to start process (1)"
     exit 1
   fi
 }
