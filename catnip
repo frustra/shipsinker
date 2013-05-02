@@ -82,8 +82,8 @@ function list {
   echo "Running packages:"
   for dir in `find . -type d`
   do
-    if [ -f $dir/package.pid ]; then
-      PID=$(cat $dir/package.pid 2> /dev/null)
+    if [ -f $dir/catnip.pid ]; then
+      PID=$(cat $dir/catnip.pid 2> /dev/null)
       if [ $? -eq 0 ]; then
         ps -p $PID > /dev/null 2>&1
         if [ $? -eq 0 ]; then
@@ -99,9 +99,11 @@ function list {
 }
 
 function log {
-  echo ""
-  echo " --- $1: log file --- "
-  cat $CATNIP_HOME/$1/package.log
+  if [ -f $CATNIP_HOME/$1/catnip.log ]; then
+    less $CATNIP_HOME/$1/catnip.log
+  else
+    echo "No log file for $1"
+  fi
 }
 
 function start {
@@ -109,23 +111,23 @@ function start {
   echo ""
   echo " --- $1: starting up --- "
   cd $CATNIP_HOME/$1
-  echo " --- $1: starting up --- `date` --- " >> package.log
-  touch package.pid
-  chmod 777 package.pid
+  echo " --- $1: starting up --- `date` --- " >> catnip.log
+  touch catnip.pid
+  chmod 777 catnip.pid
   cd $CATNIP_HOME/$1/package
-  sudo -u $EXEC_USER env CATNIP=true $PACKAGE_ENV nohup $CATNIP_BIN/cn-forever $PACKAGE_START >> $CATNIP_HOME/$1/package.log 2>&1 &
+  sudo -u $EXEC_USER env CATNIP=true $PACKAGE_ENV nohup $CATNIP_BIN/cn-forever $PACKAGE_START >> $CATNIP_HOME/$1/catnip.log 2>&1 &
   sleep 1
-  PID=$(cat $CATNIP_HOME/$1/package.pid 2> /dev/null)
+  PID=$(cat $CATNIP_HOME/$1/catnip.pid 2> /dev/null)
   if [ $? -eq 0 ]; then
     ps -p $PID > /dev/null 2>&1
     if [ $? -eq 0 ]; then
       echo "Started Successfully"
     else
-      echo "Failed to start process (2)"
+      echo "Failed to start process"
       exit 1
     fi
   else
-    echo "Failed to start process (1)"
+    echo "Failed to start process"
     exit 1
   fi
 }
@@ -136,11 +138,11 @@ function stop {
   echo " --- $1: stopping --- "
   cd $CATNIP_HOME/$1
 
-  PID=$(cat ./package.pid 2> /dev/null)
+  PID=$(cat ./catnip.pid 2> /dev/null)
   if [ $? -eq 0 ]; then
     ps -p $PID > /dev/null 2>&1
     if [ $? -eq 0 ]; then
-      echo " --- $1: stopping --- `date` --- " >> package.log
+      echo " --- $1: stopping --- `date` --- " >> catnip.log
       sudo -u $EXEC_USER kill $PID
       ps -p $PID > /dev/null 2>&1
       if [ $? -eq 0 ]; then
