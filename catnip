@@ -136,6 +136,17 @@ function autostart {
   done
 }
 
+function stopall {
+  cd $CATNIP_HOME
+  for dir in `find . -maxdepth 1 -mindepth 1 -type d`; do
+    if [ -f $dir/package.cat ]; then
+      PACKAGE_NAME=$(basename $dir)
+      loadPackage $PACKAGE_NAME
+      stop $PACKAGE_NAME
+    fi
+  done
+}
+
 function start {
   [ -z "$PACKAGE_START" ] && return
   cd $CATNIP_HOME/$1
@@ -244,6 +255,7 @@ function usage {
   echo "      restart      execute restart for PACKAGE"
   echo "      start        execute start for PACKAGE"
   echo "      stop         execute stop for PACKAGE"
+  echo "      stopall      execute stop for all packages"
   echo "      sync         execute synchronize for PACKAGE"
   exit
 }
@@ -284,6 +296,9 @@ case $1 in
     [ -z "$2" ] && usage
     loadPackage $2
     stop $2
+    ;;
+  stopall )
+    stopall
     ;;
   sync )
     [ -z "$2" ] && usage
