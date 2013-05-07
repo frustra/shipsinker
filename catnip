@@ -1,6 +1,11 @@
 #!/bin/bash
 
-[ -f /etc/catnip.conf ] && . /etc/catnip.conf
+if [ -f /etc/catnip.conf ]; then
+  source /etc/catnip.conf
+else
+  echo "Missing config in /etc/catnip.conf"
+  exit 1
+fi
 
 function loadPackage {
   REPO_TYPE=
@@ -260,7 +265,7 @@ function usage {
   exit
 }
 
-if [ `whoami` != $BUILD_USER ]; then
+if [ "$(whoami)" != "$BUILD_USER" ]; then
   sudo -u $BUILD_USER $0 $@
   exit
 fi
