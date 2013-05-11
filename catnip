@@ -246,6 +246,7 @@ function sync {
       echo "Invalid repository type specified"
       exit 1
   esac
+  chmod -R +rx $CATNIP_HOME/$1
 }
 
 function usage {
