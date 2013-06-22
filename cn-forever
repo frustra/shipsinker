@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PID=$(cat ../catnip.pid 2> /dev/null)
+PID=$(cat ../pid/catnip.pid 2> /dev/null)
 if [ $? -eq 0 ]; then
   ps -p $PID > /dev/null 2>&1
   if [ $? -eq 0 ]; then
@@ -10,7 +10,7 @@ if [ $? -eq 0 ]; then
 fi
 
 function killChild {
-  PID=$(cat ../process.pid 2> /dev/null)
+  PID=$(cat ../pid/process.pid 2> /dev/null)
   if [ $? -eq 0 ]; then
     ps -p $PID > /dev/null 2>&1
     if [ $? -eq 0 ]; then
@@ -21,22 +21,22 @@ function killChild {
 
 trap "killChild" SIGTERM
 
-echo $$ > ../catnip.pid
+echo $$ > ../pid/catnip.pid
 
 COMMAND=$1
 shift
 while true; do
   $COMMAND "$@" &
   PID=$!
-  echo $PID > ../process.pid
+  echo $PID > ../pid/process.pid
   wait $PID
   STATUS=$?
+  rm -f ../pid/process.pid
   if [ $STATUS -eq 143 ]; then
     echo "Process was stopped"
-    rm -f ../catnip.pid
+    rm -f ../pid/catnip.pid
     exit
   fi
   echo "Process exited with code: $STATUS"
-  rm -f ../process.pid
   sleep 15
 done
