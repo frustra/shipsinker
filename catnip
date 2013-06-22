@@ -17,10 +17,9 @@ function loadPackage {
   DEPLOY_START=
   if [ -d $CATNIP_HOME/$1 ] && [ -f $CATNIP_HOME/$1/package.cat ]; then
     . $CATNIP_HOME/$1/package.cat
-    return 1
   else
     echo "Package not found"
-    return 0
+    exit 1
   fi
 }
 
@@ -292,7 +291,6 @@ case $1 in
   d|deploy )
     [ -z "$2" ] && usage
     loadPackage $2
-    $? || exit 1
     deploy $2
     ;;
   list )
@@ -305,23 +303,20 @@ case $1 in
   r|restart )
     [ -z "$2" ] && usage
     loadPackage $2
-    $? || exit 1
     stop $2
-    $? && exit $?
+    [ $? -ne 0 ] && exit $?
     start $2
     exit $?
     ;;
   start )
     [ -z "$2" ] && usage
     loadPackage $2
-    $? || exit 1
     start $2
     exit $?
     ;;
   stop )
     [ -z "$2" ] && usage
     loadPackage $2
-    $? || exit 1
     stop $2
     exit $?
     ;;
@@ -331,7 +326,6 @@ case $1 in
   sync )
     [ -z "$2" ] && usage
     loadPackage $2
-    $? || exit 1
     sync $2
     ;;
   * )
