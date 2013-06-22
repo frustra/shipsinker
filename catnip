@@ -291,7 +291,8 @@ case $1 in
     ;;
   d|deploy )
     [ -z "$2" ] && usage
-    loadPackage $2 || exit 1
+    loadPackage $2
+    $? || exit 1
     deploy $2
     ;;
   list )
@@ -303,20 +304,24 @@ case $1 in
     ;;
   r|restart )
     [ -z "$2" ] && usage
-    loadPackage $2 || exit 1
-    stop $2 && exit $?
+    loadPackage $2
+    $? || exit 1
+    stop $2
+    $? && exit $?
     start $2
     exit $?
     ;;
   start )
     [ -z "$2" ] && usage
-    loadPackage $2 || exit 1
+    loadPackage $2
+    $? || exit 1
     start $2
     exit $?
     ;;
   stop )
     [ -z "$2" ] && usage
-    loadPackage $2 || exit 1
+    loadPackage $2
+    $? || exit 1
     stop $2
     exit $?
     ;;
@@ -325,7 +330,8 @@ case $1 in
     ;;
   sync )
     [ -z "$2" ] && usage
-    loadPackage $2 || exit 1
+    loadPackage $2
+    $? || exit 1
     sync $2
     ;;
   * )
