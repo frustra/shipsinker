@@ -169,7 +169,7 @@ function start {
   echo " --- $1: starting up --- "
   echo " --- $1: starting up --- `date` --- " >> catnip.log
   touch catnip.pid
-  chmod 777 catnip.pid
+  chmod 666 catnip.pid
   cd $CATNIP_HOME/$1/package
   sudo -u $EXEC_USER env CATNIP=true $PACKAGE_ENV nohup $CATNIP_BIN/cn-forever $PACKAGE_START >> $CATNIP_HOME/$1/catnip.log 2>&1 &
   sleep 1
@@ -246,7 +246,6 @@ function sync {
       echo "Invalid repository type specified"
       exit 1
   esac
-  chmod -R +rx $CATNIP_HOME/$1
 }
 
 function usage {
