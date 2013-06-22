@@ -9,12 +9,27 @@ if [ $? -eq 0 ]; then
   fi
 fi
 
+function killChild {
+  kill $PID
+}
+
+trap "killChild" SIGTERM
+
 echo $$ > ../catnip.pid
 
 COMMAND=$1
 shift
 while true; do
-  $COMMAND "$@"
+  $COMMAND "$@" &
+  PID = $!
+  echo $PID > ../process.pid
+  wait $PID
+  if [ $? -eq 143 ]; then
+    echo "Process was stopped"
+    rm -f ../catnip.pid
+    exit
+  fi
   echo "Process exited with code: $?"
+  rm -f ../process.pid
   sleep 15
 done
