@@ -173,7 +173,7 @@ function start {
     fi
   fi
   echo " --- $1: starting up --- `date` --- " >> catnip.log
-  mkdir -m 777 pid
+  mkdir -m 777 -p pid
   touch pid/catnip.pid pid/process.pid
   chmod 666 pid/catnip.pid pid/process.pid
   cd $CATNIP_HOME/$1/package
