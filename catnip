@@ -105,11 +105,10 @@ function deploy {
 }
 
 function list {
-  cd $CATNIP_HOME
   NOTFOUND=true
   echo ""
   echo "Running packages:"
-  for dir in `find . -maxdepth 1 -mindepth 1 -type d`; do
+  for dir in `find $CATNIP_HOME -maxdepth 1 -mindepth 1 -type d`; do
     PACKAGE_NAME=$(basename $dir)
     checkRunning $PACKAGE_NAME
     if [ $? -ne 0 ]; then
@@ -131,8 +130,7 @@ function log {
 }
 
 function autostart {
-  cd $CATNIP_HOME
-  for dir in `find . -maxdepth 1 -mindepth 1 -type d`; do
+  for dir in `find $CATNIP_HOME -maxdepth 1 -mindepth 1 -type d`; do
     if [ -f $dir/package.cat ]; then
       PACKAGE_NAME=$(basename $dir)
       loadPackage $PACKAGE_NAME
@@ -142,8 +140,7 @@ function autostart {
 }
 
 function stopall {
-  cd $CATNIP_HOME
-  for dir in `find . -maxdepth 1 -mindepth 1 -type d`; do
+  for dir in `find $CATNIP_HOME -maxdepth 1 -mindepth 1 -type d`; do
     if [ -f $dir/package.cat ]; then
       PACKAGE_NAME=$(basename $dir)
       loadPackage $PACKAGE_NAME
