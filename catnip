@@ -93,9 +93,6 @@ function deploy {
     if $DEPLOY_START; then
       stop $1
       start $1
-      if [ $? -ne 0 ]; then
-        exit $?
-      fi
     fi
 
     END_TIME=$(date +%s.%N)
