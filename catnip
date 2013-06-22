@@ -114,8 +114,9 @@ function list {
   for dir in `find $CATNIP_HOME -maxdepth 1 -mindepth 1 -type d`; do
     PACKAGE_NAME=$(basename $dir)
     checkRunning $PACKAGE_NAME
-    if [ $? -ne 0 ]; then
-      if [ $? -eq 2 ]; then
+    RUNNING=$?
+    if [ $RUNNING -ne 0 ]; then
+      if [ $RUNNING -eq 2 ]; then
         echo "  $PACKAGE_NAME"
       else
         echo "  $PACKAGE_NAME [crashed]"
@@ -178,10 +179,11 @@ function start {
   sudo -u $EXEC_USER env CATNIP=true $PACKAGE_ENV nohup $CATNIP_BIN/cn-forever $PACKAGE_START >> $CATNIP_HOME/$1/catnip.log 2>&1 &
   sleep 1
   checkRunning $1
-  if [ $? -eq 2 ]; then
+  RUNNING=$?
+  if [ $RUNNING -eq 2 ]; then
     echo "Started Successfully"
     return 0
-  elif [ $? -eq 1 ]; then
+  elif [ $RUNNING -eq 1 ]; then
     echo "Started but crashed"
     return 1
   else
@@ -301,7 +303,6 @@ case $1 in
     [ -z "$2" ] && usage
     loadPackage $2
     stop $2
-    [ $? -ne 0 ] && exit $?
     start $2
     exit $?
     ;;

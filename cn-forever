@@ -30,12 +30,13 @@ while true; do
   PID=$!
   echo $PID > ../process.pid
   wait $PID
-  if [ $? -eq 143 ]; then
+  STATUS=$?
+  if [ $STATUS -eq 143 ]; then
     echo "Process was stopped"
     rm -f ../catnip.pid
     exit
   fi
-  echo "Process exited with code: $?"
+  echo "Process exited with code: $STATUS"
   rm -f ../process.pid
   sleep 15
 done
