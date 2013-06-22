@@ -175,8 +175,8 @@ function start {
     fi
   fi
   echo " --- $1: starting up --- `date` --- " >> catnip.log
-  touch catnip.pid
-  chmod 666 catnip.pid
+  touch catnip.pid process.pid
+  chmod 666 catnip.pid process.pid
   cd $CATNIP_HOME/$1/package
   sudo -u $EXEC_USER env CATNIP=true $PACKAGE_ENV nohup $CATNIP_BIN/cn-forever $PACKAGE_START >> $CATNIP_HOME/$1/catnip.log 2>&1 &
   sleep 1

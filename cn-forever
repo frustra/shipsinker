@@ -21,7 +21,7 @@ COMMAND=$1
 shift
 while true; do
   $COMMAND "$@" &
-  PID = $!
+  PID=$!
   echo $PID > ../process.pid
   wait $PID
   if [ $? -eq 143 ]; then
