@@ -16,9 +16,11 @@ function killChild {
     if [ $? -eq 0 ]; then
       kill $PID
     else
+      rm -f ../pid/catnip.pid
       exit
     fi
   else
+    rm -f ../pid/catnip.pid
     exit
   fi
 }
