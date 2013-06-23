@@ -69,7 +69,7 @@ function prepare {
   echo ""
   echo " --- $1: preparing --- "
   cd $CATNIP_HOME/$1/package
-  env BUILD_NUMBER=$2 $PACKAGE_PREPARE
+  (BUILD_NUMBER=$2; eval $PACKAGE_PREPARE)
   if [ $? -eq 0 ]; then
     archiveArtifacts $1 $2
   else
