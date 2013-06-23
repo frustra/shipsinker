@@ -15,11 +15,7 @@ function killChild {
     ps -p $PID > /dev/null 2>&1
     if [ $? -eq 0 ]; then
       kill $PID
-    else
-      exit
     fi
-  else
-    exit
   fi
 }
 
@@ -42,5 +38,7 @@ while true; do
     exit
   fi
   echo "Process exited with code: $STATUS"
-  sleep 15
+  for i in {1..15}; do
+    sleep 1
+  done
 done
