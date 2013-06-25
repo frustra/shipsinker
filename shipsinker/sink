@@ -1,0 +1,440 @@
+#!/bin/bash
+
+if [ -f /etc/shipsinker.conf ]; then
+  source /etc/shipsinker.conf
+else
+  echo "Missing config in /etc/shipsinker.conf"
+  exit 1
+fi
+
+function loadPackage {
+  REPO_TYPE=
+  REPO_ORIGIN=
+  PACKAGE_PREPARE=
+  PACKAGE_START=
+  PACKAGE_ENV=
+  AUTO_START=false
+  DEPLOY_START=false
+  if [ -d $SINK_HOME/$1 ] && [ -f $SINK_HOME/$1/ship.conf ]; then
+    . $SINK_HOME/$1/ship.conf
+  else
+    echo "Package not found"
+    exit 1
+  fi
+}
+
+function loadBuildNumber {
+  cd $SINK_HOME/$1
+  BUILD_NUMBER=0
+  if [ -f ./latest.build ]; then
+    BUILD_NUMBER=`expr $(cat ./latest.build 2> /dev/null) + 1` 
+  fi
+  echo "$BUILD_NUMBER" > ./latest.build
+  return $BUILD_NUMBER
+}
+
+function checkRunning {
+  [ -f $SINK_HOME/$1/pid/sailboat.pid ] || return 0
+  PID1=$(cat $SINK_HOME/$1/pid/sailboat.pid 2> /dev/null)
+  ps -p $PID1 > /dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    [ -f $SINK_HOME/$1/pid/process.pid ] || return 1
+    PID2=$(cat $SINK_HOME/$1/pid/process.pid 2> /dev/null)
+    ps -p $PID2 > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+      return 2 # Process and sailboat running
+    else
+      return 1 # Only sailboat running ( process crashed )
+    fi
+  else
+    return 0 # Nothing running
+  fi
+}
+
+function archiveArtifacts {
+  cd $SINK_HOME/$1
+  if [ -d $SINK_HOME/$1/package/artifacts ]; then
+    echo ""
+    echo " --- $1: archiving artifacts --- "
+    mkdir -m 0755 -p $SINK_HOME/$1/artifacts/$BUILD_NUMBER
+    cp -R $SINK_HOME/$1/package/artifacts/* $SINK_HOME/$1/artifacts/$2/
+    rm -rf $SINK_HOME/$1/package/artifacts
+    cd $SINK_HOME/$1/artifacts
+    ln -sfT ./$BUILD_NUMBER ./latest
+  fi
+}
+
+function prepare {
+  [ -z "$PACKAGE_PREPARE" ] && return
+  echo ""
+  echo " --- $1: preparing --- "
+  cd $SINK_HOME/$1/package
+  (BUILD_NUMBER=$2; eval $PACKAGE_PREPARE)
+  if [ $? -eq 0 ]; then
+    archiveArtifacts $1 $2
+  else
+    echo "Preparing failed"
+    return 1
+  fi
+}
+
+function deploy {
+  lockfile -r 0 $SINK_HOME/$1/package.lock
+  if [ $? -eq 0 ]; then
+    echo " --- $1: starting deploy --- "
+
+    START_TIME=$(date +%s.%N)
+
+    loadBuildNumber $1
+    BUILD_NUMBER=$?
+    echo "`date`, v$BUILD_NUMBER"
+    pull $1
+    if [ $? -eq 0 ]; then
+      prepare $1 $BUILD_NUMBER
+      if [ $? -eq 0 ] && $DEPLOY_START; then
+        stop $1
+        start $1
+      fi
+    fi
+
+    END_TIME=$(date +%s.%N)
+    DURATION=$(echo "$END_TIME - $START_TIME" | bc)
+
+    printf "Deploy completed in %.3F seconds\n" $DURATION
+
+    rm -f $SINK_HOME/$1/package.lock
+  else
+    echo "Failed to aquire lock!"
+    exit 1
+  fi
+}
+
+function list {
+  echo ""
+  echo "Shipsinker packages:"
+  for dir in `find $SINK_HOME -maxdepth 1 -mindepth 1 -type d`; do
+    PACKAGE_NAME=$(basename $dir)
+    checkRunning $PACKAGE_NAME
+    RUNNING=$?
+    if [ $RUNNING -ne 0 ]; then
+      if [ $RUNNING -eq 2 ]; then
+        echo "  $PACKAGE_NAME [running]"
+      else
+        echo "  $PACKAGE_NAME [crashed]"
+      fi
+    else
+      echo "  $PACKAGE_NAME"
+    fi
+  done
+}
+
+function log {
+  if [ -f $SINK_HOME/$1/ship.log ]; then
+    less $SINK_HOME/$1/ship.log
+  else
+    echo "No log file for $1"
+  fi
+}
+
+function create {
+  if [ -z "$1" ]; then
+    read -p "Enter a package name: " PKG
+    if [ -z "$PKG" ]; then
+      echo "Not a valid package name."
+      exit 1
+    fi
+    create $PKG
+    exit
+  fi
+  if [ -d $SINK_HOME/$1 ]; then
+    if [ -f $SINK_HOME/$1/ship.conf ]; then
+      echo "A package with that name already exists!"
+    else
+      echo "A folder with that name already exists!"
+    fi
+    exit 1
+  else
+    echo "Creating a packaged called: $1"
+    while true; do
+      read -p "Select repository type (git/hg): " choice
+      case "$choice" in 
+        g|git ) REPO_TYPE=git; break;;
+        h|hg ) REPO_TYPE=hg; break;;
+      esac
+    done
+    while true; do
+      read -p "Enter the repository url: " choice
+      if [ ! -z "$choice" ]; then
+        REPO_ORIGIN=$choice
+        break
+      fi
+    done
+    read -p "Enter a build / prepare command (optional, eg: 'npm install'): " choice
+    PACKAGE_PREPARE=$choice
+    read -p "Enter a start command to execute (optional, eg: 'node app.js'): " choice
+    PACKAGE_START=$choice
+    read -p "Enter any custom environment variables to use (optional, eg: 'PORT=8080 SETTING=true'): " choice
+    PACKAGE_ENV=$choice
+    while true; do
+      AUTO_START=false
+      read -p "Should this package start when 'sink autostart' is run? (y/N): " choice
+      case "$choice" in 
+        y|Y|yes ) AUTO_START=true; break;;
+        n|N|no ) break;;
+        * ) [ -z "$choice" ] && break;;
+      esac
+    done
+    while true; do
+      DEPLOY_START=false
+      read -p "Should this package start when 'sink PACKAGE' is run? (y/N): " choice
+      case "$choice" in 
+        y|Y|yes ) DEPLOY_START=true; break;;
+        n|N|no ) break;;
+        * ) [ -z "$choice" ] && break;;
+      esac
+    done
+    echo ""
+    echo "Package name: $1"
+    echo "REPO_TYPE=$REPO_TYPE"
+    echo "REPO_ORIGIN=\"$REPO_ORIGIN\""
+    [ ! -z "$choice" ] && echo "PACKAGE_PREPARE=\"$PACKAGE_PREPARE\""
+    [ ! -z "$choice" ] && echo "PACKAGE_START=\"$PACKAGE_START\""
+    [ ! -z "$choice" ] && echo "PACKAGE_ENV=\"$PACKAGE_ENV\""
+    echo "AUTO_START=$AUTO_START"
+    echo "DEPLOY_START=$DEPLOY_START"
+    while true; do
+      read -p "Are you sure you want to create this package? (Y/n): " choice
+      case "$choice" in 
+        y|Y|yes ) break;;
+        n|N|no ) exit;;
+        * ) [ -z "$choice" ] && break;;
+      esac
+    done
+    mkdir -p -m 755 $SINK_HOME/$1
+    [ $? -ne 0 ] && echo "Failed to create project folder." && exit 1
+    touch $SINK_HOME/$1/ship.conf
+    [ $? -ne 0 ] && echo "Failed to create project file." && exit 1
+    chmod 644 $SINK_HOME/$1/ship.conf
+    [ $? -ne 0 ] && echo "Failed to set project file's permissions." && exit 1
+    echo "REPO_TYPE=$REPO_TYPE" > $SINK_HOME/$1/ship.conf
+    echo "REPO_ORIGIN=\"$REPO_ORIGIN\"" >> $SINK_HOME/$1/ship.conf
+    echo "PACKAGE_PREPARE=\"$PACKAGE_PREPARE\"" >> $SINK_HOME/$1/ship.conf
+    echo "PACKAGE_START=\"$PACKAGE_START\"" >> $SINK_HOME/$1/ship.conf
+    echo "PACKAGE_ENV=\"$PACKAGE_ENV\"" >> $SINK_HOME/$1/ship.conf
+    echo "AUTO_START=$AUTO_START" >> $SINK_HOME/$1/ship.conf
+    echo "DEPLOY_START=$DEPLOY_START" >> $SINK_HOME/$1/ship.conf
+    echo "Project saved to $SINK_HOME/$1/ship.conf"
+  fi
+}
+
+function autostart {
+  for dir in `find $SINK_HOME -maxdepth 1 -mindepth 1 -type d`; do
+    if [ -f $dir/ship.conf ]; then
+      PACKAGE_NAME=$(basename $dir)
+      loadPackage $PACKAGE_NAME || continue
+      $AUTO_START && start $PACKAGE_NAME
+    fi
+  done
+}
+
+function stopall {
+  for dir in `find $SINK_HOME -maxdepth 1 -mindepth 1 -type d`; do
+    if [ -f $dir/ship.conf ]; then
+      PACKAGE_NAME=$(basename $dir)
+      loadPackage $PACKAGE_NAME || continue
+      stop $PACKAGE_NAME
+    fi
+  done
+}
+
+function start {
+  [ -z "$PACKAGE_START" ] && return
+  cd $SINK_HOME/$1
+  echo ""
+  echo " --- $1: starting up --- "
+  if ! [ -d ./package ]; then
+    echo "$1 has no source!"
+    return 3
+  else
+    checkRunning $1
+    if [ $? -ne 0 ]; then
+      echo "$1 is already running."
+      return 0
+    fi
+  fi
+  echo " --- $1: starting up --- `date` --- " >> ship.log
+  mkdir -m 777 -p pid
+  touch pid/sailboat.pid pid/process.pid
+  chmod 666 pid/sailboat.pid pid/process.pid
+  cd $SINK_HOME/$1/package
+  sudo -u $EXEC_USER env SINK=true $PACKAGE_ENV nohup $SINK_BIN/sailboat $PACKAGE_START >> $SINK_HOME/$1/ship.log 2>&1 &
+  sleep 1
+  checkRunning $1
+  RUNNING=$?
+  if [ $RUNNING -eq 2 ]; then
+    echo "Started Successfully"
+    return 0
+  elif [ $RUNNING -eq 1 ]; then
+    echo "Started but crashed"
+    return 1
+  else
+    echo "Failed to start"
+    return 2
+  fi
+}
+
+function stop {
+  [ -z "$PACKAGE_START" ] && return
+  echo ""
+  echo " --- $1: stopping --- "
+  cd $SINK_HOME/$1
+
+  checkRunning $1
+  if [ $? -ne 0 ]; then
+    echo " --- $1: stopping --- `date` --- " >> ship.log
+    sudo -u $EXEC_USER kill $PID1
+    timeout 2 bash -c "while true; do [ -f pid/sailboat.pid ] || break; done"
+    checkRunning $1
+    if [ $? -ne 0 ]; then
+      echo "Failed to stop process"
+      return 1
+    else
+      echo "Stopped $1"
+      return 0
+    fi
+  else
+    echo "Process not running"
+    return 0
+  fi
+}
+
+function _pullGit {
+  if [ -d $SINK_HOME/$1/package ]; then
+    cd $SINK_HOME/$1/package
+    git fetch --all && git reset --hard origin/master
+  else
+    cd $SINK_HOME/$1
+    git clone $REPO_ORIGIN ./package
+  fi
+  [ -f $SINK_HOME/$1/package/.git_perm_cache ] && git-perm-cache.sh --apply
+}
+
+function _pullHg {
+  if [ -d $SINK_HOME/$1 ]; then
+    cd $SINK_HOME/$1/package
+    hg pull $REPO_ORIGIN && hg update --clean
+  else
+    cd $SINK_HOME/$1
+    git clone $REPO_ORIGIN ./package
+  fi
+}
+
+function pull {
+  echo ""
+  echo " --- $1: synchronizing --- "
+  if [ -z "$REPO_TYPE" ]; then
+    echo "Missing repository type"
+    return 1
+  elif [ -z "$REPO_ORIGIN" ]; then
+    echo "Missing repository origin"
+    return 1
+  fi
+  case $REPO_TYPE in
+    git )
+      _pullGit $1
+      ;;
+    hg )
+      _pullHg $1
+      ;;
+    * )
+      echo "Invalid repository type specified"
+      return 1
+  esac
+}
+
+function usage {
+  echo ""
+  echo "    usage:"
+  echo "      sink PACKAGE            pull and start/restart PACKAGE"
+  echo "      sink [action]           execute an action for all packages"
+  echo "      sink [action] PACKAGE   execute an action on PACKAGE"
+  echo "      sink help               display this usage message"
+  echo ""
+  echo "    actions:"
+  echo "      autostart   start all packages configured for autostart"
+  echo "      list        list all packages and their status"
+  echo "      stopall     stop all running packages"
+  echo ""
+  echo "    package actions:"
+  echo "      create      set up new config files for PACKAGE"
+  echo "      deploy      pull and start/restart PACKAGE"
+  echo "      log         display the log file for PACKAGE"
+  echo "      pull        synchronize repository for PACKAGE"
+  echo "      restart     stop and restart PACKAGE"
+  echo "      start       start a new daemon for PACKAGE"
+  echo "      stop        stop any running instances of PACKAGE"
+  exit
+}
+
+if [ "$(whoami)" != "$BUILD_USER" ]; then
+  sudo -u $BUILD_USER $0 $@
+  exit
+fi
+
+case $1 in
+  help|usage|-h|--help )
+    usage
+    ;;
+  autostart )
+    autostart
+    ;;
+  l|list )
+    list
+    ;;
+  stopall )
+    stopall
+    ;;
+
+  create )
+    create $2
+    ;;
+  log )
+    [ -z "$2" ] && usage
+    loadPackage $2
+    log $2
+    ;;
+  pull )
+    [ -z "$2" ] && usage
+    loadPackage $2
+    pull $2
+    ;;
+  r|restart )
+    [ -z "$2" ] && usage
+    loadPackage $2
+    stop $2
+    start $2
+    exit $?
+    ;;
+  start )
+    [ -z "$2" ] && usage
+    loadPackage $2
+    start $2
+    exit $?
+    ;;
+  stop )
+    [ -z "$2" ] && usage
+    loadPackage $2
+    stop $2
+    exit $?
+    ;;
+
+  d|deploy )
+    [ -z "$2" ] && usage
+    loadPackage $2
+    deploy $2
+    ;;
+  * )
+    [ -z "$1" ] && usage
+    loadPackage $1
+    deploy $1
+esac

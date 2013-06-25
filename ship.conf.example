@@ -1,0 +1,39 @@
+# Example package configuration file
+
+# Repository type
+# Both git and hg are available
+# 
+REPO_TYPE=git
+
+# Repository location
+# The git or hg clone url
+# 
+REPO_ORIGIN="https://github.com/Frustra/shipsinker.git"
+
+# The build / prepare command to be run by `sink PACKAGE` after synchronizing the repository
+# Multiple commands are supported.
+# If this is not specified, no command will be run
+# 
+PACKAGE_PREPARE="npm install; echo \"Build is done!\""
+
+# The command to be executed by sailboat when `sink start PACKAGE` is run
+# This will also be run during `sink PACKAGE` if DEPLOY_START is true
+# If this is not specified, start and stop commands will not be available for this package
+# 
+PACKAGE_START="node app.js"
+
+# Any custom environment variables can be specified here.
+# These values will be set for the execution of PACKAGE_START
+# The SINK=true environment variable is set automatically
+# 
+#PACKAGE_ENV="PORT=8080 SOME_SETTING=true"
+
+# If true, `sink autostart` will include this package
+# Default is false
+# 
+#AUTO_START=true
+
+# If true, `sink PACKAGE` will start/restart this package after preparing it
+# Default is false
+# 
+#DEPLOY_START=true

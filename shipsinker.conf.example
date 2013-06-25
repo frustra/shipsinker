@@ -1,0 +1,14 @@
+# This file should be stored as /etc/shipsinker.conf
+
+# Location where the shipsinker executables are stored
+SINK_BIN=/usr/local/lib/shipsinker
+
+# Location where shipsinker packages are stored
+SINK_HOME=/var/sink
+
+# The name of the user to run packages as
+EXEC_USER=www-data
+
+# The name of the user to build and pull packages as
+# Users will need permissions to `sudo -u` to this user in order to use the sink command
+BUILD_USER=sinker

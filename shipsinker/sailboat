@@ -1,6 +1,11 @@
 #!/bin/bash
 
-PID=$(cat ../pid/catnip.pid 2> /dev/null)
+if [ -z "$1" ]; then
+  echo "sailboat is only meant to be used through shipsinker!"
+  exit
+fi
+
+PID=$(cat ../pid/sailboat.pid 2> /dev/null)
 if [ $? -eq 0 ]; then
   ps -p $PID > /dev/null 2>&1
   if [ $? -eq 0 ]; then
@@ -16,18 +21,18 @@ function killChild {
     if [ $? -eq 0 ]; then
       kill $PID
     else
-      rm -f ../pid/catnip.pid
+      rm -f ../pid/sailboat.pid
       exit
     fi
   else
-    rm -f ../pid/catnip.pid
+    rm -f ../pid/sailboat.pid
     exit
   fi
 }
 
 trap "killChild" SIGTERM
 
-echo $$ > ../pid/catnip.pid
+echo $$ > ../pid/sailboat.pid
 
 COMMAND=$1
 shift
@@ -40,7 +45,7 @@ while true; do
   rm -f ../pid/process.pid
   if [ $STATUS -eq 143 ]; then
     echo "Process was stopped"
-    rm -f ../pid/catnip.pid
+    rm -f ../pid/sailboat.pid
     exit
   fi
   echo "Process exited with code: $STATUS"
