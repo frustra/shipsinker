@@ -114,16 +114,18 @@ function list {
   echo "Shipsinker packages:"
   for dir in `find $SINK_HOME -maxdepth 1 -mindepth 1 -type d`; do
     PACKAGE_NAME=$(basename $dir)
-    checkRunning $PACKAGE_NAME
-    RUNNING=$?
-    if [ $RUNNING -ne 0 ]; then
-      if [ $RUNNING -eq 2 ]; then
-        echo "  $PACKAGE_NAME [running]"
+    if [ -d $SINK_HOME/$PACKAGE_NAME ] && [ -f $SINK_HOME/$PACKAGE_NAME/ship.conf ]; then
+      checkRunning $PACKAGE_NAME
+      RUNNING=$?
+      if [ $RUNNING -ne 0 ]; then
+        if [ $RUNNING -eq 2 ]; then
+          echo "  $PACKAGE_NAME [running]"
+        else
+          echo "  $PACKAGE_NAME [crashed]"
+        fi
       else
-        echo "  $PACKAGE_NAME [crashed]"
+        echo "  $PACKAGE_NAME"
       fi
-    else
-      echo "  $PACKAGE_NAME"
     fi
   done
 }
