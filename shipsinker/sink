@@ -65,7 +65,7 @@ function archiveArtifacts {
 }
 
 function prepare {
-  [ -z "$PACKAGE_PREPARE" ] && return
+  [ -z "$PACKAGE_PREPARE" ] && return 0
   echo ""
   echo " --- $1: preparing --- "
   cd $SINK_HOME/$1/package
@@ -250,7 +250,7 @@ function stopall {
 }
 
 function start {
-  [ -z "$PACKAGE_START" ] && return
+  [ -z "$PACKAGE_START" ] && return 0
   cd $SINK_HOME/$1
   echo ""
   echo " --- $1: starting up --- "
@@ -286,7 +286,7 @@ function start {
 }
 
 function stop {
-  [ -z "$PACKAGE_START" ] && return
+  [ -z "$PACKAGE_START" ] && return 0
   echo ""
   echo " --- $1: stopping --- "
   cd $SINK_HOME/$1
@@ -353,6 +353,7 @@ function pull {
       echo "Invalid repository type specified"
       return 1
   esac
+  return 0
 }
 
 function usage {
