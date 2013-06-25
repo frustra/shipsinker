@@ -318,7 +318,8 @@ function _pullGit {
     cd $SINK_HOME/$1
     git clone $REPO_ORIGIN ./package
   fi
-  [ -f $SINK_HOME/$1/package/.git_perm_cache ] && git-perm-cache.sh --apply
+  cd $SINK_HOME/$1/package
+  [ -f .git_perm_cache ] && git-perm-cache.sh --apply
 }
 
 function _pullHg {
