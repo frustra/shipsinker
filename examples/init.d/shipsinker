@@ -1,0 +1,28 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          shipsinker
+# Required-Start:    $network $remote_fs $local_fs·
+# Required-Stop:     $network $remote_fs $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start/stop shipsinker services
+### END INIT INFO
+
+source /etc/shipsinker.conf
+
+case "$1" in
+  start)
+    echo "Starting shipsinker packages"
+    $SINK_BIN/sink autostart
+    ;;
+  stop)
+    echo "Stopping shipsinker packages"
+    $SINK_BIN/sink stopall
+    ;;
+  *)
+    echo "Usage: /etc/init.d/shipsinker {start|stop}"
+    exit 1
+    ;;
+esac
+
+exit 0
