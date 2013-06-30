@@ -199,9 +199,9 @@ function create {
     echo "Package name: $1"
     echo "REPO_TYPE=$REPO_TYPE"
     echo "REPO_ORIGIN=\"$REPO_ORIGIN\""
-    [ ! -z "$choice" ] && echo "PACKAGE_PREPARE=\"$PACKAGE_PREPARE\""
-    [ ! -z "$choice" ] && echo "PACKAGE_START=\"$PACKAGE_START\""
-    [ ! -z "$choice" ] && echo "PACKAGE_ENV=\"$PACKAGE_ENV\""
+    [ -z "$PACKAGE_PREPARE" ] || echo "PACKAGE_PREPARE=\"$PACKAGE_PREPARE\""
+    [ -z "$PACKAGE_START" ] || echo "PACKAGE_START=\"$PACKAGE_START\""
+    [ -z "$PACKAGE_ENV" ] || echo "PACKAGE_ENV=\"$PACKAGE_ENV\""
     echo "AUTO_START=$AUTO_START"
     echo "DEPLOY_START=$DEPLOY_START"
     while true; do
