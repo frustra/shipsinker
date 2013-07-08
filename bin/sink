@@ -323,12 +323,12 @@ function _pullGit {
 }
 
 function _pullHg {
-  if [ -d $SINK_HOME/$1 ]; then
+  if [ -d $SINK_HOME/$1/package ]; then
     cd $SINK_HOME/$1/package
     hg pull $REPO_ORIGIN && hg update --clean
   else
     cd $SINK_HOME/$1
-    git clone $REPO_ORIGIN ./package
+    hg clone $REPO_ORIGIN ./package
   fi
 }
 
