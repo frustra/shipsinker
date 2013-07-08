@@ -132,7 +132,7 @@ function list {
 
 function log {
   if [ -f $SINK_HOME/$1/ship.log ]; then
-    less $SINK_HOME/$1/ship.log
+    cat $SINK_HOME/$1/ship.log | less
   else
     echo "No log file for $1"
   fi
