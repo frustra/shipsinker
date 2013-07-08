@@ -3,7 +3,7 @@ shipsinker
 
 shipsinker is perhaps the simplest possible utility for automating single-server app deployments.
 It's not tied to any particular language or framework, and can be used to deploy pretty much anything.
-shipsinker used to be written in Node.js, but for compatibility with any kind of server it was rewritten in bash.
+shipsinker used to be written in Node.js, but for compatibility with more servers it was rewritten in bash.
 
 
 1. installation
