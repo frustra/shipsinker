@@ -6,21 +6,21 @@ It's not tied to any particular language or framework, and can be used to deploy
 shipsinker used to be written in Node.js, but for compatibility with any kind of server it was rewritten in bash.
 
 
-installation
+1. installation
 ------------
 
 Get shipsinker by cloning the repository or grabbing the [tarball](https://github.com/Frustra/shipsinker/archive/master.tar.gz).
 Put it anywhere, but keep note of where for the next step.
 
 
-configuration
+2. configuration
 -------------
 
 Global configuration is done via `/etc/shipsinker.conf`. It's self-documented [here](https://github.com/Frustra/shipsinker/blob/master/examples/shipsinker.conf).
 `sink create [package name]` from anywhere to set up a package.
 
 
-usage
+3. usage
 -----
 
 shipsinker supplies the `sink` command, which is used for managing packages
