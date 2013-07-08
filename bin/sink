@@ -69,7 +69,7 @@ function prepare {
   echo ""
   echo " --- $1: preparing --- "
   cd $SINK_HOME/$1/package
-  (BUILD_NUMBER=$2; eval $PACKAGE_PREPARE)
+  (export BUILD_NUMBER=$2; eval $PACKAGE_PREPARE)
   if [ $? -eq 0 ]; then
     archiveArtifacts $1 $2
   else
