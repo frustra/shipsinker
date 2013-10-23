@@ -26,7 +26,7 @@ function loadPackage {
 function loadBuildNumber {
   BUILD_NUMBER=0
   if [ -f "$SINK_HOME/$1/latest.build" ]; then
-    BUILD_NUMBER=`expr $(cat "$SINK_HOME/$1/latest.build" 2> /dev/null) + 1` 
+    BUILD_NUMBER=`expr $(cat "$SINK_HOME/$1/latest.build" 2> /dev/null) + 1`
   fi
   echo "$BUILD_NUMBER" > "$SINK_HOME/$1/latest.build"
   return "$BUILD_NUMBER"
@@ -35,11 +35,11 @@ function loadBuildNumber {
 function checkRunning {
   [ -f "$SINK_HOME/$1/pid/sailboat.pid" ] || return 0
   PID1=$(cat "$SINK_HOME/$1/pid/sailboat.pid" 2> /dev/null)
-  ps -p "$PID1" > /dev/null 2>&1
+  sudo -u "$EXEC_USER" ps -p "$PID1" > /dev/null 2>&1
   if [ $? -eq 0 ]; then
     [ -f "$SINK_HOME/$1/pid/process.pid" ] || return 1
     PID2=$(cat "$SINK_HOME/$1/pid/process.pid" 2> /dev/null)
-    ps -p "$PID2" > /dev/null 2>&1
+    sudo -u "$EXEC_USER" ps -p "$PID2" > /dev/null 2>&1
     if [ $? -eq 0 ]; then
       return 2 # Process and sailboat running
     else
@@ -154,7 +154,7 @@ function create {
     echo "Creating a packaged called: \"$1\""
     while true; do
       read -p "Select repository type (git/hg): " choice
-      case "$choice" in 
+      case "$choice" in
         g|git ) REPO_TYPE=git; break;;
         h|hg ) REPO_TYPE=hg; break;;
       esac
@@ -175,7 +175,7 @@ function create {
     while true; do
       AUTO_START=false
       read -p "Should this package start when 'sink autostart' is run? (y/N): " choice
-      case "$choice" in 
+      case "$choice" in
         y|Y|yes ) AUTO_START=true; break;;
         n|N|no ) break;;
         * ) [ -z "$choice" ] && break;;
@@ -184,7 +184,7 @@ function create {
     while true; do
       DEPLOY_START=false
       read -p "Should this package start when 'sink PACKAGE' is run? (y/N): " choice
-      case "$choice" in 
+      case "$choice" in
         y|Y|yes ) DEPLOY_START=true; break;;
         n|N|no ) break;;
         * ) [ -z "$choice" ] && break;;
@@ -201,7 +201,7 @@ function create {
     echo "DEPLOY_START=$DEPLOY_START"
     while true; do
       read -p "Are you sure you want to create this package? (Y/n): " choice
-      case "$choice" in 
+      case "$choice" in
         y|Y|yes ) break;;
         n|N|no ) exit;;
         * ) [ -z "$choice" ] && break;;
