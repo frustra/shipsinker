@@ -8,8 +8,10 @@ else
 fi
 
 function loadPackage {
+  PACKAGE_NAME=$1
   REPO_TYPE=
   REPO_ORIGIN=
+  REPO_PATH=
   PACKAGE_PREPARE=
   PACKAGE_START=
   PACKAGE_ENV=
@@ -17,6 +19,7 @@ function loadPackage {
   DEPLOY_START=false
   if [ -d "$SINK_HOME/$1" ] && [ -f "$SINK_HOME/$1/ship.conf" ]; then
     source "$SINK_HOME/$1/ship.conf"
+    [ -z "$REPO_PATH" ] && REPO_PATH="$SINK_HOME/$1/package"
   else
     echo "Package not found"
     exit 1
@@ -54,8 +57,8 @@ function archiveBuild {
   echo ""
   echo " --- $1: archiving build --- "
   mkdir -m 0755 -p "$SINK_HOME/$1/builds/$BUILD_NUMBER"
-  if [ -d "$SINK_HOME/$1/package/artifacts" ]; then
-    mv "$SINK_HOME/$1/package/artifacts" "$SINK_HOME/$1/builds/$2/artifacts"
+  if [ -d "$REPO_PATH/artifacts" ]; then
+    mv "$REPO_PATH/artifacts" "$SINK_HOME/$1/builds/$2/artifacts"
   fi
   cd "$SINK_HOME/$1/builds"
   ln -sfT "./$BUILD_NUMBER" "./latest"
@@ -65,7 +68,7 @@ function prepare {
   [ -z "$PACKAGE_PREPARE" ] && return 0
   echo ""
   echo " --- $1: preparing --- "
-  cd "$SINK_HOME/$1/package"
+  cd "$REPO_PATH"
   (export BUILD_NUMBER="$2"; eval "$PACKAGE_PREPARE")
   STATUS=$?
   [ $STATUS -eq 0 ] || echo "Build failed"
@@ -166,6 +169,8 @@ function create {
         break
       fi
     done
+    read -p "Enter the repository clone path (leave blank for default): " choice
+    REPO_PATH="$choice"
     read -p "Enter a build / prepare command (optional, eg: 'npm install'): " choice
     PACKAGE_PREPARE="$choice"
     read -p "Enter a start command to execute (optional, eg: 'node app.js'): " choice
@@ -194,6 +199,7 @@ function create {
     echo "Package name: \"$1\""
     echo "REPO_TYPE=$REPO_TYPE"
     echo "REPO_ORIGIN=\"$REPO_ORIGIN\""
+    [ -z "$REPO_PATH" ] || echo "REPO_PATH=\"$REPO_PATH\""
     [ -z "$PACKAGE_PREPARE" ] || echo "PACKAGE_PREPARE=\"$PACKAGE_PREPARE\""
     [ -z "$PACKAGE_START" ] || echo "PACKAGE_START=\"$PACKAGE_START\""
     [ -z "$PACKAGE_ENV" ] || echo "PACKAGE_ENV=\"$PACKAGE_ENV\""
@@ -215,6 +221,7 @@ function create {
     [ $? -ne 0 ] && echo "Failed to set project file's permissions." && exit 1
     echo "REPO_TYPE=$REPO_TYPE" > "$SINK_HOME/$1/ship.conf"
     echo "REPO_ORIGIN=\"$REPO_ORIGIN\"" >> "$SINK_HOME/$1/ship.conf"
+    echo "REPO_PATH=\"$REPO_PATH\"" >> "$SINK_HOME/$1/ship.conf"
     echo "PACKAGE_PREPARE=\"$PACKAGE_PREPARE\"" >> "$SINK_HOME/$1/ship.conf"
     echo "PACKAGE_START=\"$PACKAGE_START\"" >> "$SINK_HOME/$1/ship.conf"
     echo "PACKAGE_ENV=\"$PACKAGE_ENV\"" >> "$SINK_HOME/$1/ship.conf"
@@ -248,7 +255,7 @@ function start {
   [ -z "$PACKAGE_START" ] && return 0
   echo ""
   echo " --- $1: starting up --- "
-  if ! [ -d "$SINK_HOME/$1/package" ]; then
+  if ! [ -d "$REPO_PATH" ]; then
     echo "$1 has no source!"
     return 3
   else
@@ -262,7 +269,7 @@ function start {
   mkdir -m 777 -p "$SINK_HOME/$1/pid"
   touch "$SINK_HOME/$1/pid/sailboat.pid" "$SINK_HOME/$1/pid/process.pid"
   chmod 666 "$SINK_HOME/$1/pid/sailboat.pid" "$SINK_HOME/$1/pid/process.pid"
-  cd "$SINK_HOME/$1/package"
+  cd "$REPO_PATH"
   sudo -u "$EXEC_USER" env SINK=true $PACKAGE_ENV nohup "$SINK_BIN/sailboat" "$PACKAGE_START" >> "$SINK_HOME/$1/ship.log" 2>&1 &
   sleep 1
   checkRunning "$1"
@@ -304,25 +311,25 @@ function stop {
 }
 
 function _pullGit {
-  if [ -d "$SINK_HOME/$1/package" ]; then
-    cd "$SINK_HOME/$1/package"
+  if [ -d "$REPO_PATH" ]; then
+    cd "$REPO_PATH"
     git fetch --all && git reset --hard origin/master
   else
-    cd "$SINK_HOME/$1"
-    git clone $REPO_ORIGIN "$SINK_HOME/$1/package"
+    git clone $REPO_ORIGIN "$REPO_PATH"
+    cd "$REPO_PATH"
   fi
-  cd "$SINK_HOME/$1/package"
   [ -f ".git_perm_cache" ] && git-perm-cache.sh --apply
 }
 
 function _pullHg {
-  if [ -d "$SINK_HOME/$1/package" ]; then
-    cd "$SINK_HOME/$1/package"
+  if [ -d "$REPO_PATH" ]; then
+    cd "$REPO_PATH"
     hg pull $REPO_ORIGIN && hg update --clean
   else
-    cd "$SINK_HOME/$1"
-    hg clone $REPO_ORIGIN "$SINK_HOME/$1/package"
+    hg clone $REPO_ORIGIN "$REPO_PATH"
+    cd "$REPO_PATH"
   fi
+  [ -f ".git_perm_cache" ] && git-perm-cache.sh --apply
 }
 
 function pull {
