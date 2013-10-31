@@ -5,7 +5,7 @@ if [ -z "$1" ]; then
   exit
 fi
 
-PID=$(cat ../pid/sailboat.pid 2> /dev/null)
+PID=$(cat "$SINK_HOME/$PACKAGE_NAME/pid/sailboat.pid" 2> /dev/null)
 if [ $? -eq 0 ]; then
   ps -p $PID > /dev/null 2>&1
   if [ $? -eq 0 ]; then
@@ -15,37 +15,37 @@ if [ $? -eq 0 ]; then
 fi
 
 function killChild {
-  PID=$(cat ../pid/process.pid 2> /dev/null)
+  PID=$(cat "$SINK_HOME/$PACKAGE_NAME/pid/process.pid" 2> /dev/null)
   if [ $? -eq 0 ]; then
     ps -p $PID > /dev/null 2>&1
     if [ $? -eq 0 ]; then
       kill $PID
     else
-      rm -f ../pid/sailboat.pid
+      rm -f "$SINK_HOME/$PACKAGE_NAME/pid/sailboat.pid"
       exit
     fi
   else
-    rm -f ../pid/sailboat.pid
+    rm -f "$SINK_HOME/$PACKAGE_NAME/pid/sailboat.pid"
     exit
   fi
 }
 
 trap "killChild" SIGTERM
 
-echo $$ > ../pid/sailboat.pid
+echo $$ > "$SINK_HOME/$PACKAGE_NAME/pid/sailboat.pid"
 
 COMMAND=$1
 shift
 while true; do
   $COMMAND "$@" &
   PID=$!
-  echo $PID > ../pid/process.pid
+  echo $PID > "$SINK_HOME/$PACKAGE_NAME/pid/process.pid"
   wait $PID
   STATUS=$?
-  rm -f ../pid/process.pid
+  rm -f "$SINK_HOME/$PACKAGE_NAME/pid/process.pid"
   if [ $STATUS -eq 143 ]; then
     echo "Process was stopped"
-    rm -f ../pid/sailboat.pid
+    rm -f "$SINK_HOME/$PACKAGE_NAME/pid/sailboat.pid"
     exit
   fi
   echo "Process exited with code: $STATUS"

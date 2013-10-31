@@ -270,7 +270,7 @@ function start {
   touch "$SINK_HOME/$1/pid/sailboat.pid" "$SINK_HOME/$1/pid/process.pid"
   chmod 666 "$SINK_HOME/$1/pid/sailboat.pid" "$SINK_HOME/$1/pid/process.pid"
   cd "$REPO_PATH"
-  sudo -u "$EXEC_USER" env SINK=true $PACKAGE_ENV nohup "$SINK_BIN/sailboat" "$PACKAGE_START" >> "$SINK_HOME/$1/ship.log" 2>&1 &
+  sudo -u "$EXEC_USER" env SINK=true SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" $PACKAGE_ENV nohup "$SINK_BIN/sailboat" "$PACKAGE_START" >> "$SINK_HOME/$1/ship.log" 2>&1 &
   sleep 1
   checkRunning "$1"
   RUNNING=$?
