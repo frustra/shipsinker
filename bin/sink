@@ -22,7 +22,7 @@ function loadPackage {
     source "$SINK_HOME/$1/ship.conf"
     [ -z "$REPO_PATH" ] && REPO_PATH="$SINK_HOME/$1/package"
     for i in "${!ENV[@]}"; do
-      PACKAGE_ENV="$PACKAGE_ENV $i=\"${ENV[$i]}\""
+      PACKAGE_ENV="$PACKAGE_ENV $i=${ENV[$i]}"
     done
   else
     echo "Package not found"
