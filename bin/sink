@@ -18,8 +18,12 @@ function loadPackage {
   AUTO_START=false
   DEPLOY_START=false
   if [ -d "$SINK_HOME/$1" ] && [ -f "$SINK_HOME/$1/ship.conf" ]; then
+    declare -A ENV
     source "$SINK_HOME/$1/ship.conf"
     [ -z "$REPO_PATH" ] && REPO_PATH="$SINK_HOME/$1/package"
+    for i in "${!ENV[@]}"; do
+      PACKAGE_ENV="$PACKAGE_ENV $i=\"${ENV[$i]}\""
+    done
   else
     echo "Package not found"
     exit 1
@@ -56,12 +60,12 @@ function checkRunning {
 function archiveBuild {
   echo ""
   echo " --- $1: archiving build --- "
-  mkdir -m 0755 -p "$SINK_HOME/$1/builds/$BUILD_NUMBER"
+  mkdir -m 0755 -p "$SINK_HOME/$1/builds/$2"
   if [ -d "$REPO_PATH/artifacts" ]; then
     mv "$REPO_PATH/artifacts" "$SINK_HOME/$1/builds/$2/artifacts"
   fi
   cd "$SINK_HOME/$1/builds"
-  ln -sfT "./$BUILD_NUMBER" "./latest"
+  ln -sfT "./$2" "./latest"
 }
 
 function prepare {
@@ -69,7 +73,7 @@ function prepare {
   echo ""
   echo " --- $1: preparing --- "
   cd "$REPO_PATH"
-  (export BUILD_NUMBER="$2"; eval "$PACKAGE_PREPARE")
+  env BUILD_NUMBER="$2" $PACKAGE_ENV "$PACKAGE_PREPARE"
   STATUS=$?
   [ $STATUS -eq 0 ] || echo "Build failed"
   archiveBuild "$1" "$2"
@@ -175,8 +179,28 @@ function create {
     PACKAGE_PREPARE="$choice"
     read -p "Enter a start command to execute (optional, eg: 'node app.js'): " choice
     PACKAGE_START="$choice"
-    read -p "Enter any custom environment variables to use (optional, eg: 'PORT=8080 SETTING=true'): " choice
-    PACKAGE_ENV="$choice"
+    declare -A ENV
+    while true; do
+      AUTO_START=false
+      read -p "Does this package require any environment variables? (y/N): " choice
+      case "$choice" in
+        y|Y|yes )
+          while true; do
+            read -p "Enter an environment variables to set (leave blank to stop): " choice
+            if [ -z "$choice" ]; then
+              break
+            else
+              ENV_KEY="$choice"
+              read -p "Enter the value for '$ENV_KEY' (can be blank): " choice
+              ENV[$ENV_KEY]="$choice"
+            fi
+          done
+          break
+          ;;
+        n|N|no ) break;;
+        * ) [ -z "$choice" ] && break;;
+      esac
+    done
     while true; do
       AUTO_START=false
       read -p "Should this package start when 'sink autostart' is run? (y/N): " choice
@@ -202,7 +226,9 @@ function create {
     [ -z "$REPO_PATH" ] || echo "REPO_PATH=\"$REPO_PATH\""
     [ -z "$PACKAGE_PREPARE" ] || echo "PACKAGE_PREPARE=\"$PACKAGE_PREPARE\""
     [ -z "$PACKAGE_START" ] || echo "PACKAGE_START=\"$PACKAGE_START\""
-    [ -z "$PACKAGE_ENV" ] || echo "PACKAGE_ENV=\"$PACKAGE_ENV\""
+    for i in "${!ENV[@]}"; do
+      echo "ENV[$i]=\"${ENV[$i]}\""
+    done
     echo "AUTO_START=$AUTO_START"
     echo "DEPLOY_START=$DEPLOY_START"
     while true; do
@@ -224,7 +250,9 @@ function create {
     echo "REPO_PATH=\"$REPO_PATH\"" >> "$SINK_HOME/$1/ship.conf"
     echo "PACKAGE_PREPARE=\"$PACKAGE_PREPARE\"" >> "$SINK_HOME/$1/ship.conf"
     echo "PACKAGE_START=\"$PACKAGE_START\"" >> "$SINK_HOME/$1/ship.conf"
-    echo "PACKAGE_ENV=\"$PACKAGE_ENV\"" >> "$SINK_HOME/$1/ship.conf"
+    for i in "${!ENV[@]}"; do
+      echo "ENV[$i]=\"${ENV[$i]}\"" >> "$SINK_HOME/$1/ship.conf"
+    done
     echo "AUTO_START=$AUTO_START" >> "$SINK_HOME/$1/ship.conf"
     echo "DEPLOY_START=$DEPLOY_START" >> "$SINK_HOME/$1/ship.conf"
     echo "Project saved to \"$SINK_HOME/$1/ship.conf\""
