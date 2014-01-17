@@ -263,6 +263,7 @@ function create {
     done
     echo "AUTO_START=$AUTO_START" >> "$SINK_HOME/$1/ship.conf"
     echo "DEPLOY_START=$DEPLOY_START" >> "$SINK_HOME/$1/ship.conf"
+    echo "" >> "$SINK_HOME/$1/ship.conf"
     echo "Project saved to \"$SINK_HOME/$1/ship.conf\""
   fi
 }
