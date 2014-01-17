@@ -57,17 +57,6 @@ function checkRunning {
   fi
 }
 
-function archiveBuild {
-  echo ""
-  echo " --- $1: archiving build --- "
-  mkdir -m 0755 -p "$SINK_HOME/$1/builds/$2"
-  if [ -d "$REPO_PATH/artifacts" ]; then
-    mv "$REPO_PATH/artifacts" "$SINK_HOME/$1/builds/$2/artifacts"
-  fi
-  cd "$SINK_HOME/$1/builds"
-  ln -sfT "./$2" "./latest"
-}
-
 function prepare {
   [ -z "$PACKAGE_PREPARE" ] && return 0
   echo ""
@@ -76,7 +65,11 @@ function prepare {
   env BUILD_NUMBER="$2" $PACKAGE_ENV "$PACKAGE_PREPARE"
   STATUS=$?
   [ $STATUS -eq 0 ] || echo "Build failed"
-  archiveBuild "$1" "$2"
+  if [ -d "$REPO_PATH/artifacts" ]; then
+    echo ""
+    echo " --- $1: archiving build --- "
+    mv "$REPO_PATH/artifacts" "$SINK_HOME/$1/builds/$2/artifacts"
+  fi
   return $STATUS
 }
 
@@ -89,10 +82,17 @@ function deploy {
 
     loadBuildNumber "$1"
     BUILD_NUMBER=$?
-    echo "`date`, v$BUILD_NUMBER"
-    pull "$1"
+
+    mkdir -m 0755 -p "$SINK_HOME/$1/builds/$BUILD_NUMBER"
+    cd "$SINK_HOME/$1/builds"
+    ln -sfT "./$BUILD_NUMBER" "./latest"
+
+    echo " --- $1: starting deploy --- " >> "$SINK_HOME/$1/builds/$BUILD_NUMBER/build.log"
+    echo "`date`, v$BUILD_NUMBER" | tee -a "$SINK_HOME/$1/builds/$BUILD_NUMBER/build.log"
+
+    pull "$1" 2>&1 | tee -a "$SINK_HOME/$1/builds/$BUILD_NUMBER/build.log"
     if [ $? -eq 0 ]; then
-      prepare "$1" "$BUILD_NUMBER"
+      prepare "$1" "$BUILD_NUMBER" 2>&1 | tee -a "$SINK_HOME/$1/builds/$BUILD_NUMBER/build.log"
       if [ $? -eq 0 ] && $DEPLOY_START; then
         stop "$1"
         start "$1"
@@ -102,7 +102,7 @@ function deploy {
     END_TIME=$(date +%s.%N)
     DURATION=$(echo "${END_TIME/\.N/} - ${START_TIME/\.N/}" | bc)
 
-    printf "Deploy completed in %.3F seconds\n" $DURATION
+    printf "Deploy completed in %.3F seconds\n" $DURATION | tee -a "$SINK_HOME/$1/builds/$BUILD_NUMBER/build.log"
 
     rm -f "$SINK_HOME/$1/package.lock"
   else
@@ -130,6 +130,14 @@ function list {
       fi
     fi
   done
+}
+
+function build-log {
+  if [ -f "$SINK_HOME/$1/builds/latest/build.log" ]; then
+    less -R "$SINK_HOME/$1/builds/latest/build.log"
+  else
+    echo "No log file for \"$1\""
+  fi
 }
 
 function log {
@@ -281,7 +289,7 @@ function stopall {
 
 function start {
   [ -z "$PACKAGE_START" ] && return 0
-  echo ""
+  echo "" | tee -a "$SINK_HOME/$1/ship.log"
   echo " --- $1: starting up --- "
   if ! [ -d "$REPO_PATH" ]; then
     echo "$1 has no source!"
@@ -398,6 +406,7 @@ function usage {
   echo "      stopall     stop all running packages"
   echo ""
   echo "    package actions:"
+  echo "      build-log   display the latest build log file for PACKAGE"
   echo "      create      set up new config files for PACKAGE"
   echo "      deploy      pull and start/restart PACKAGE"
   echo "      log         display the log file for PACKAGE"
@@ -429,6 +438,11 @@ case $1 in
 
   create )
     create $2
+    ;;
+  build-log )
+    [ -z "$2" ] && usage
+    loadPackage "$2"
+    build-log "$2"
     ;;
   log )
     [ -z "$2" ] && usage
