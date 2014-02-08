@@ -64,7 +64,7 @@ function prepare {
   echo ""
   echo " --- $1: preparing --- "
   cd "$REPO_PATH"
-  env BUILD_NUMBER="$2" $PACKAGE_ENV "$PACKAGE_PREPARE"
+  env BUILD_NUMBER="$2" $PACKAGE_ENV bash -c "$PACKAGE_PREPARE"
   STATUS=$?
   [ $STATUS -eq 0 ] || echo "Build failed"
   if [ -d "$REPO_PATH/artifacts" ]; then
@@ -98,12 +98,12 @@ function logged_deploy {
   if [ $STATUS -eq 0 ]; then
     if [ ! -z "$BUILD_SUCCESS" ]; then
       cd "$REPO_PATH"
-      env SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" BUILD_NUMBER="$BUILD_NUMBER" "$BUILD_SUCCESS"
+      env SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" BUILD_NUMBER="$BUILD_NUMBER" bash -c "$BUILD_SUCCESS"
     fi
   else
     if [ ! -z "$BUILD_FAIL" ]; then
       cd "$REPO_PATH"
-      env SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" BUILD_NUMBER="$BUILD_NUMBER" "$BUILD_FAIL"
+      env SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" BUILD_NUMBER="$BUILD_NUMBER" bash -c "$BUILD_FAIL"
     fi
   fi
 }
