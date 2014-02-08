@@ -98,12 +98,12 @@ function logged_deploy {
   if [ $STATUS -eq 0 ]; then
     if [ ! -z "$BUILD_SUCCESS" ]; then
       cd "$REPO_PATH"
-      env SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" BUILD_NUMBER="$BUILD_NUMBER" bash -c "$BUILD_SUCCESS"
+      env SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" BUILD_NUMBER="$BUILD_NUMBER" DURATION="$DURATION" bash -c "$BUILD_SUCCESS"
     fi
   else
     if [ ! -z "$BUILD_FAIL" ]; then
       cd "$REPO_PATH"
-      env SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" BUILD_NUMBER="$BUILD_NUMBER" bash -c "$BUILD_FAIL"
+      env SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" BUILD_NUMBER="$BUILD_NUMBER" DURATION="$DURATION" bash -c "$BUILD_FAIL"
     fi
   fi
 }
