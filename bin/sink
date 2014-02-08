@@ -1,6 +1,8 @@
 #!/bin/bash
 
 if [ -f "/etc/shipsinker.conf" ]; then
+  BUILD_SUCCESS=
+  BUILD_FAIL=
   source "/etc/shipsinker.conf"
 else
   echo "Missing config in /etc/shipsinker.conf"
@@ -73,6 +75,39 @@ function prepare {
   return $STATUS
 }
 
+function logged_deploy {
+  echo "`date`, v$BUILD_NUMBER"
+
+  pull "$1"
+  STATUS=$?
+  if [ $STATUS -eq 0 ]; then
+    prepare "$1" "$BUILD_NUMBER"
+    STATUS=$?
+    if [ $STATUS -eq 0 ] && $DEPLOY_START; then
+      stop "$1"
+      start "$1"
+      STATUS=$?
+    fi
+  fi
+
+  END_TIME=$(date +%s.%N)
+  DURATION=$(echo "${END_TIME/\.N/} - ${START_TIME/\.N/}" | bc)
+
+  printf "Deploy completed in %.3F seconds\n" $DURATION
+
+  if [ $STATUS -eq 0 ]; then
+    if [ ! -z "$BUILD_SUCCESS" ]; then
+      cd "$REPO_PATH"
+      env SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" BUILD_NUMBER="$BUILD_NUMBER" "$BUILD_SUCCESS"
+    fi
+  else
+    if [ ! -z "$BUILD_FAIL" ]; then
+      cd "$REPO_PATH"
+      env SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" BUILD_NUMBER="$BUILD_NUMBER" "$BUILD_FAIL"
+    fi
+  fi
+}
+
 function deploy {
   lockfile -r 0 "$SINK_HOME/$1/package.lock"
   if [ $? -eq 0 ]; then
@@ -88,21 +123,7 @@ function deploy {
     ln -sfT "./$BUILD_NUMBER" "./latest"
 
     echo " --- $1: starting deploy --- " >> "$SINK_HOME/$1/builds/$BUILD_NUMBER/build.log"
-    echo "`date`, v$BUILD_NUMBER" | tee -a "$SINK_HOME/$1/builds/$BUILD_NUMBER/build.log"
-
-    pull "$1" 2>&1 | tee -a "$SINK_HOME/$1/builds/$BUILD_NUMBER/build.log"
-    if [ $? -eq 0 ]; then
-      prepare "$1" "$BUILD_NUMBER" 2>&1 | tee -a "$SINK_HOME/$1/builds/$BUILD_NUMBER/build.log"
-      if [ $? -eq 0 ] && $DEPLOY_START; then
-        stop "$1"
-        start "$1"
-      fi
-    fi
-
-    END_TIME=$(date +%s.%N)
-    DURATION=$(echo "${END_TIME/\.N/} - ${START_TIME/\.N/}" | bc)
-
-    printf "Deploy completed in %.3F seconds\n" $DURATION | tee -a "$SINK_HOME/$1/builds/$BUILD_NUMBER/build.log"
+    logged_deploy "$1" "$BUILD_NUMBER" 2>&1 | tee -a "$SINK_HOME/$1/builds/$BUILD_NUMBER/build.log"
 
     rm -f "$SINK_HOME/$1/package.lock"
   else
