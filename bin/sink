@@ -499,7 +499,7 @@ case $1 in
     [ -z "$2" ] && usage
     loadPackage "$2"
     shift 2
-    sudo -u "$EXEC_USER" env SINK=true SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" $PACKAGE_ENV bash -c "$@"
+    env SINK=true SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" $PACKAGE_ENV bash -c "$@"
     exit $?
     ;;
 
