@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [ -f "/etc/shipsinker.conf" ]; then
   BUILD_SUCCESS=
@@ -493,6 +493,13 @@ case $1 in
     [ -z "$2" ] && usage
     loadPackage "$2"
     stop "$2"
+    exit $?
+    ;;
+  exec )
+    [ -z "$2" ] && usage
+    loadPackage "$2"
+    shift 2
+    sudo -u "$EXEC_USER" env SINK=true SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" $PACKAGE_ENV bash -c "$@"
     exit $?
     ;;
 
