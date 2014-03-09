@@ -501,7 +501,7 @@ case $1 in
     loadPackage "$2"
     shift 2
     cd "$SINK_HOME/$PACKAGE_NAME"
-    env $PACKAGE_ENV bash -c "$*" | tee -a "$SINK_HOME/$PACKAGE_NAME/ship.log"
+    env $PACKAGE_ENV bash -c "$*" 2>&1 | tee -a "$SINK_HOME/$PACKAGE_NAME/ship.log"
     exit $?
     ;;
 
