@@ -33,12 +33,11 @@ function loadPackage {
 }
 
 function loadBuildNumber {
-  BUILD_NUMBER=0
+  BUILD_NUMBER="0"
   if [ -f "$SINK_HOME/$1/latest.build" ]; then
     BUILD_NUMBER=`expr $(cat "$SINK_HOME/$1/latest.build" 2> /dev/null) + 1`
   fi
   echo "$BUILD_NUMBER" > "$SINK_HOME/$1/latest.build"
-  return "$BUILD_NUMBER"
 }
 
 function checkRunning {
@@ -116,14 +115,13 @@ function deploy {
     START_TIME=$(date +%s.%N)
 
     loadBuildNumber "$1"
-    BUILD_NUMBER=$?
 
     mkdir -m 0755 -p "$SINK_HOME/$1/builds/$BUILD_NUMBER"
     cd "$SINK_HOME/$1/builds"
     ln -sfT "./$BUILD_NUMBER" "./latest"
 
     echo " --- $1: starting deploy --- " >> "$SINK_HOME/$1/builds/$BUILD_NUMBER/build.log"
-    logged_deploy "$1" "$BUILD_NUMBER" 2>&1 | tee -a "$SINK_HOME/$1/builds/$BUILD_NUMBER/build.log"
+    logged_deploy "$1" 2>&1 | tee -a "$SINK_HOME/$1/builds/$BUILD_NUMBER/build.log"
 
     rm -f "$SINK_HOME/$1/package.lock"
   else
