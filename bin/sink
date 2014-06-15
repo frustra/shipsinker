@@ -92,19 +92,20 @@ function logged_deploy {
   END_TIME=$(date +%s.%N)
   DURATION=$(echo "${END_TIME/\.N/} - ${START_TIME/\.N/}" | bc)
 
-  printf "Deploy completed in %.3F seconds\n" $DURATION
-
   if [ $STATUS -eq 0 ]; then
+    printf "Deploy completed in %.3F seconds\n" $DURATION
     if [ ! -z "$BUILD_SUCCESS" ]; then
       cd "$REPO_PATH"
       env SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" BUILD_NUMBER="$BUILD_NUMBER" DURATION="$DURATION" bash -c "$BUILD_SUCCESS"
     fi
   else
+    printf "Deploy failed after %.3F seconds\n" $DURATION
     if [ ! -z "$BUILD_FAIL" ]; then
       cd "$REPO_PATH"
       env SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" BUILD_NUMBER="$BUILD_NUMBER" DURATION="$DURATION" bash -c "$BUILD_FAIL"
     fi
   fi
+  return $STATUS
 }
 
 function deploy {
@@ -122,8 +123,10 @@ function deploy {
 
     echo " --- $1: starting deploy --- " >> "$SINK_HOME/$1/builds/$BUILD_NUMBER/build.log"
     logged_deploy "$1" 2>&1 | tee -a "$SINK_HOME/$1/builds/$BUILD_NUMBER/build.log"
+    SUCCESS=$?
 
     rm -f "$SINK_HOME/$1/package.lock"
+    exit $SUCCESS
   else
     echo "Failed to aquire lock!"
     exit 1
@@ -371,9 +374,8 @@ function _pullGit {
     cd "$REPO_PATH"
     git fetch --all && git reset --hard origin/master
   else
-    git clone $REPO_ORIGIN "$REPO_PATH"
-    cd "$REPO_PATH"
-  fi
+    git clone $REPO_ORIGIN "$REPO_PATH" && cd "$REPO_PATH"
+  fi &&
   [ -f ".git_perm_cache" ] && git-perm-cache.sh --apply
 }
 
@@ -382,9 +384,8 @@ function _pullHg {
     cd "$REPO_PATH"
     hg pull $REPO_ORIGIN && hg update --clean
   else
-    hg clone $REPO_ORIGIN "$REPO_PATH"
-    cd "$REPO_PATH"
-  fi
+    hg clone $REPO_ORIGIN "$REPO_PATH" && cd "$REPO_PATH"
+  fi &&
   [ -f ".git_perm_cache" ] && git-perm-cache.sh --apply
 }
 
@@ -409,7 +410,7 @@ function pull {
       echo "Invalid repository type specified"
       return 1
   esac
-  return 0
+  return $?
 }
 
 function usage {
@@ -442,6 +443,8 @@ if [ "$(whoami)" != "$BUILD_USER" ]; then
   sudo -u "$BUILD_USER" $0 $@
   exit
 fi
+
+set -o pipefail
 
 case $1 in
   help|usage|-h|--help )
