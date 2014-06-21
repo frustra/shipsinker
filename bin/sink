@@ -375,8 +375,7 @@ function _pullGit {
     git fetch --all && git reset --hard origin/master
   else
     git clone $REPO_ORIGIN "$REPO_PATH" && cd "$REPO_PATH"
-  fi &&
-  [ -f ".git_perm_cache" ] && git-perm-cache.sh --apply
+  fi
 }
 
 function _pullHg {
@@ -385,8 +384,7 @@ function _pullHg {
     hg pull $REPO_ORIGIN && hg update --clean
   else
     hg clone $REPO_ORIGIN "$REPO_PATH" && cd "$REPO_PATH"
-  fi &&
-  [ -f ".git_perm_cache" ] && git-perm-cache.sh --apply
+  fi
 }
 
 function pull {
@@ -409,8 +407,10 @@ function pull {
     * )
       echo "Invalid repository type specified"
       return 1
-  esac
-  return $?
+  esac &&
+  if [ -f ".git_perm_cache" ]; then
+    git-perm-cache.sh --apply
+  fi
 }
 
 function usage {
