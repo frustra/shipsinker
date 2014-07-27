@@ -40,6 +40,19 @@ function loadBuildNumber {
   echo "$BUILD_NUMBER" > "$SINK_HOME/$1/latest.build"
 }
 
+function loadRepoHash {
+  case $REPO_TYPE in
+    git )
+      REPO_HASH=$(git rev-parse HEAD)
+      ;;
+    hg )
+      REPO_HASH=$(hg id -i)
+      ;;
+    * )
+      REPO_HASH=
+  esac
+}
+
 function checkRunning {
   [ -f "$SINK_HOME/$1/pid/sailboat.pid" ] || return 0
   PID1=$(cat "$SINK_HOME/$1/pid/sailboat.pid" 2> /dev/null)
@@ -92,17 +105,18 @@ function logged_deploy {
   END_TIME=$(date +%s.%N)
   DURATION=$(echo "${END_TIME/\.N/} - ${START_TIME/\.N/}" | bc)
 
+  cd "$REPO_PATH"
+  loadRepoHash
+
   if [ $STATUS -eq 0 ]; then
     printf "Deploy completed in %.3F seconds\n" $DURATION
     if [ ! -z "$BUILD_SUCCESS" ]; then
-      cd "$REPO_PATH"
-      env SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" BUILD_NUMBER="$BUILD_NUMBER" DURATION="$DURATION" bash -c "$BUILD_SUCCESS"
+      env SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" BUILD_NUMBER="$BUILD_NUMBER" REPO_HASH="$REPO_HASH" DURATION="$DURATION" bash -c "$BUILD_SUCCESS"
     fi
   else
     printf "Deploy failed after %.3F seconds\n" $DURATION
     if [ ! -z "$BUILD_FAIL" ]; then
-      cd "$REPO_PATH"
-      env SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" BUILD_NUMBER="$BUILD_NUMBER" DURATION="$DURATION" bash -c "$BUILD_FAIL"
+      env SINK_HOME="$SINK_HOME" PACKAGE_NAME="$PACKAGE_NAME" BUILD_NUMBER="$BUILD_NUMBER" REPO_HASH="$REPO_HASH" DURATION="$DURATION" bash -c "$BUILD_FAIL"
     fi
   fi
   return $STATUS
