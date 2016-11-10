@@ -407,7 +407,7 @@ function pull {
   if [ -z "$REPO_TYPE" ]; then
     echo "Missing repository type"
     return 1
-  elif [ -z "$REPO_ORIGIN" ]; then
+  elif [ -z "$REPO_ORIGIN" ] && [ "$REPO_TYPE" != "none" ]; then
     echo "Missing repository origin"
     return 1
   fi
@@ -417,6 +417,10 @@ function pull {
       ;;
     hg )
       _pullHg "$1"
+      ;;
+    none )
+      mkdir -p $REPO_PATH
+      return 0
       ;;
     * )
       echo "Invalid repository type specified"
